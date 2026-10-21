@@ -5,15 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "clireview"
 dynamic = ["version"]
-description = "What changed in a typer CLI, merge by merge, read from git; and a weekly review of it with reviewed-* tags."
+description = "What changed in a typer or click CLI, merge by merge, read from git; and a weekly review of it with reviewed-* tags."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = []
 
+[project.scripts]
+clireview = "clireview.cli:main"
+
 [dependency-groups]
-# typer: the tests build a small typer CLI in a git repo and read it back.
-dev = ["pytest", "ruff", "typer>=0.15.0"]
+# typer, click: the tests build a small typer CLI and a click one in a git repo and read it back.
+dev = ["pytest", "ruff", "typer>=0.15.0", "click>=8"]
 
 [tool.setuptools.dynamic]
 version = { attr = "clireview.__version__" }

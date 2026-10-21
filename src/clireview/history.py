@@ -1,4 +1,4 @@
-"""What changed in a typer CLI itself, merge by merge, read from git.
+"""What changed in a typer or click CLI itself, merge by merge, read from git.
 
 For each first-parent commit on a branch (normally main: the merges) the command tree before and after is loaded
 from that commit's own source (`git archive` of Project.src into a temp dir, imported by a fresh Python, every
@@ -33,8 +33,10 @@ AGENT_RE = re.compile(r"claude|codex|gemini|cursor|copilot|aider|anthropic|opena
 _DUMP = r"""
 import importlib, json, sys
 sys.path.insert(0, sys.argv[1])
-import typer.main
 app = getattr(importlib.import_module(sys.argv[2]), sys.argv[3])
+if not hasattr(app, "params"):  # a typer app; a click command or group (or typer's own) is walked as it is
+    import typer.main
+    app = typer.main.get_command(app)
 out = {}
 def walk(cmd, path):
     subs = getattr(cmd, "commands", None)
@@ -48,7 +50,7 @@ def walk(cmd, path):
         "args": [p.name for p in params if p.param_type_name == "argument"],
         "help": ((cmd.help or cmd.short_help or "").strip().splitlines() or [""])[0],
     }
-walk(typer.main.get_command(app), [sys.argv[4]])
+walk(app, [sys.argv[4]])
 print(json.dumps(out))
 """
 
@@ -108,6 +110,8 @@ def load_tree(repo: Path, sha: str, project: Project, python: str = sys.executab
             else:
                 last = (proc.stderr.strip().splitlines() or ["exit " + str(proc.returncode)])[-1]
                 tree = {"error": last[:300], "scripts": scripts}
+    if "error" in tree:  # not cached: it may load once the environment is fixed
+        return tree
     try:
         project.cache_dir.mkdir(parents=True, exist_ok=True)
         cached.write_text(json.dumps(tree))

@@ -1,4 +1,4 @@
-"""What changed in a typer CLI, merge by merge, read from git (history.py), and the weekly review of it with
+"""What changed in a typer or click CLI, merge by merge, read from git (history.py), and the weekly review of it with
 reviewed-* tags (review.py). Generic: the CLI to read comes in as a Project, made by the tool that uses it.
 """
 from __future__ import annotations
@@ -8,12 +8,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 @dataclass(frozen=True)
 class Project:
-    app: str  # the typer app, as "package.module:attr" (mytool.cli:app)
+    app: str  # the typer app or click command, as "package.module:attr" (mytool.cli:app)
     name: str  # the command, the first word of every command path (mytool)
     src: str  # the package's folder in the repo, the part a commit's CLI is loaded from (src/mytool)
     repo: Optional[Path] = None  # the git checkout read when none is given

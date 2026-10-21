@@ -1,20 +1,76 @@
 # clireview
 
-What changed in a [typer](https://typer.tiangolo.com) CLI, merge by merge, read from git, and a weekly review of
+What changed in a [typer](https://typer.tiangolo.com) or [click](https://click.palletsprojects.com) CLI, merge by merge, read from git, and a weekly review of
 those changes marked by `reviewed-*` tags. For a maintainer whose CLI also gets changes from other people or AI
 agents: it reads the code at each commit, not the commit messages, so it sees every added, removed or renamed
 command and option, whoever wrote it.
 
-A library, no command of its own: the tool that uses it makes a `Project` and builds its own commands on top
-(for example `mytool cli changes` and `mytool cli review`).
+A command, `clireview`, for a check in CI and a look back; and a library for a tool that builds its own commands
+on top (for example `mytool cli changes` and `mytool cli review`).
 
-## Install
+## The command
 
-```bash
-uv add "clireview @ git+https://github.com/maaroofunbxd/clireview@v0.1.0"
+In the repo of the CLI, say which app to read in `pyproject.toml`:
+
+```toml
+[tool.clireview]
+app = "mytool.cli:app"   # a typer app or a click command/group, "module:attr"
+src = "src/mytool"       # the package folder, loaded at each commit
+# name = "mytool"        # default: the console script that runs app's module
+# gh_repo = "owner/mytool"
+
+[tool.clireview.env]     # set while an old commit's CLI is imported
+MYTOOL_NO_SIDE_EFFECTS = "1"
 ```
 
-Python 3.9 or newer; no dependencies. The CLI being read needs typer in the Python that runs clireview.
+```bash
+uvx --from "git+https://github.com/maaroofunbxd/clireview" clireview check origin/main   # this branch against main
+clireview changes --since "4 weeks ago"   # every merge that changed the CLI, and who made it
+clireview status                          # is a review due (reviewed-* tags)
+```
+
+`check` prints what the branch changes in the CLI (from its merge base with main) and exits 1 when something can
+break a caller: a removed or renamed command, a removed option, changed arguments, a removed console script.
+`--allow-breaking` reports and exits 0; `--format markdown` or `--format json` for a PR comment or a script
+(`--format` goes before the command). Exit 2: git failed or the CLI did not import.
+
+### In CI
+
+```yaml
+# .github/workflows/cli-check.yml
+on: pull_request
+jobs:
+  cli:
+    runs-on: ubuntu-latest
+    permissions: { pull-requests: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - name: CLI changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALLOW: ${{ contains(github.event.pull_request.labels.*.name, 'breaking-ok') && '--allow-breaking' || '' }}
+        run: |
+          code=0
+          uv run --with "clireview @ git+https://github.com/maaroofunbxd/clireview" \
+            clireview --format markdown check origin/${{ github.base_ref }} $ALLOW > cli.md || code=$?
+          gh pr comment ${{ github.event.number }} --edit-last --body-file cli.md || \
+            gh pr comment ${{ github.event.number }} --body-file cli.md
+          exit $code
+```
+
+The CLI's own dependencies must be installed (`uv sync`), since each commit's code is imported.
+
+## Install as a library
+
+```bash
+uv add "clireview @ git+https://github.com/maaroofunbxd/clireview@v0.2.0"
+```
+
+Python 3.9 or newer; no dependencies. The CLI being read needs its own dependencies (typer or click) in the Python
+that runs clireview.
 
 ## Use
 
