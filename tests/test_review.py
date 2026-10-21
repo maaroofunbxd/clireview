@@ -49,7 +49,7 @@ def test_a_review_tag_resets_the_clock_and_merges_start_after_it(repo):
     assert last["sha"] == git(repo, "rev-parse", "HEAD").strip()
     assert not cli_review.status(repo, NOW)["due"]  # nothing merged since
 
-    merge(repo, "a", "a thing\n\nRequested-by: work-3bba (work)\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>")
+    merge(repo, "a", "a thing\n\nRequested-by: session-1 (otherrepo)\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>")
     merge(repo, "b", "b thing")
     st = cli_review.status(repo, NOW)
     assert st["due"] and st["days"] == 9 and st["merges"] == 2
@@ -57,7 +57,7 @@ def test_a_review_tag_resets_the_clock_and_merges_start_after_it(repo):
 
     merges = cli_review.merges(repo, base=last["sha"])
     assert [m["subject"] for m in merges] == ["Merge b.", "Merge a."]
-    assert merges[1]["requested_by"] == ["work-3bba (work)"] and merges[1]["actor"] == "agent:Claude Opus 5.5"
+    assert merges[1]["requested_by"] == ["session-1 (otherrepo)"] and merges[1]["actor"] == "agent:Claude Opus 5.5"
     assert merges[0]["requested_by"] == [] and merges[0]["actor"] == "user"
 
 

@@ -6,7 +6,7 @@ agents: it reads the code at each commit, not the commit messages, so it sees ev
 command and option, whoever wrote it.
 
 A library, no command of its own: the tool that uses it makes a `Project` and builds its own commands on top
-(unbxdtools: `unbxd cli changes`, `unbxd cli review`).
+(for example `mytool cli changes` and `mytool cli review`).
 
 ## Install
 
