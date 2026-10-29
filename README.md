@@ -27,12 +27,45 @@ MYTOOL_NO_SIDE_EFFECTS = "1"
 uvx --from "git+https://github.com/maaroofunbxd/clireview" clireview check origin/main   # this branch against main
 clireview changes --since "4 weeks ago"   # every merge that changed the CLI, and who made it
 clireview status                          # is a review due (reviewed-* tags)
+clireview habits                          # repeated shell from your JSONL logs (see below)
 ```
 
 `check` prints what the branch changes in the CLI (from its merge base with main) and exits 1 when something can
 break a caller: a removed or renamed command, a removed option, changed arguments, a removed console script.
 `--allow-breaking` reports and exits 0; `--format markdown` or `--format json` for a PR comment or a script
 (`--format` goes before the command). Exit 2: git failed or the CLI did not import.
+
+### `habits` — repeated commands (v0.3.0)
+
+Read-only report of command lines that show up often in **your** logs or transcript scan paths. No product
+CLI is built in: point at neutral JSONL from an export script in the consumer repo.
+
+```toml
+[tool.clireview]
+name = "mytool"
+gh_repo = "owner/mytool"   # optional: match open issues
+
+[tool.clireview.habits]
+logs = ["~/.local/mytool/commands.jsonl"]
+scan = ["~/.cursor/projects/**/*.jsonl"]   # optional; conservative line extraction
+since = "14d"
+min_count = 3              # “repeated” threshold
+long_chars = 160           # “long” normalized command
+long_argv = 14             # … or this many argv tokens (either triggers long)
+issue_labels = ["command-idea"]
+ignore = ["^agents ", "^clireview "]
+```
+
+Each log line is JSON: `{"command": "…", "ts": "2026-10-01T12:00:00Z"}` (`ts` optional). Commands are
+normalized (whitespace collapsed; long numbers and hex redacted unless `--no-redact`) before counting.
+**Long** means the habit is a heavy one-liner or many tokens — worth a subcommand or script. **Other**
+means raw shell outside `{name}` — worth a wrapper or doc. One-offs below `min_count` are omitted.
+Exit **0** when the report prints; **2** when config or inputs are unusable. Prints `gh issue` examples
+only; it does not call `gh`.
+
+```bash
+clireview habits --since 14d --format json
+```
 
 ### In CI
 
@@ -66,7 +99,7 @@ The CLI's own dependencies must be installed (`uv sync`), since each commit's co
 ## Install as a library
 
 ```bash
-uv add "clireview @ git+https://github.com/maaroofunbxd/clireview@v0.2.0"
+uv add "clireview @ git+https://github.com/maaroofunbxd/clireview@v0.3.0"
 ```
 
 Python 3.9 or newer; no dependencies. The CLI being read needs its own dependencies (typer or click) in the Python
@@ -124,6 +157,11 @@ A review is an annotated tag `reviewed-YYYY-MM-DD` on the commit of main that wa
 - `start_of`, `net_change`, `breaking`, `added`: the CLI at the start against now, and what in it can break a caller.
 - `tag_name`, `tag_review`: the next free tag name for a day; create and push it.
 - `open_issues(gh_repo, labels)`: open GitHub issues with those labels (needs `gh`).
+
+### habits.py
+
+- `load_habits_config(repo)`, `run(project, config)`: read JSONL `logs` and optional `scan` globs, normalize,
+  classify repeats vs `{name}`, match `open_issues` titles, render text/json/markdown via the CLI.
 
 ## Develop
 

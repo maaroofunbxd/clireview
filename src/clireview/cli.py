@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from clireview import Project, __version__, history, review
+from clireview import Project, __version__, habits, history, review
 from clireview.history import PYPROJECT, GitError, _git
 
 
@@ -91,6 +91,22 @@ def cmd_changes(args, project: Project) -> int:
     return 0
 
 
+def cmd_habits(args, project: Project) -> int:
+    config = habits.load_habits_config(project.repo)
+    code, payload = habits.run(project, config, since=args.since, redact=not args.no_redact)
+    if code != 0:
+        print(payload, file=sys.stderr)
+        return code
+    report = payload
+    if args.format == "json":
+        print(json.dumps(report))
+    elif args.format == "markdown":
+        print(habits.render_markdown(report))
+    else:
+        sys.stdout.write(habits.render_text(report))
+    return 0
+
+
 def cmd_status(args, project: Project) -> int:
     st = review.status(project.repo, every_days=args.every, ref=args.ref)
     if args.format == "json":
@@ -121,10 +137,15 @@ def main(argv: Optional[list] = None) -> int:
     p = sub.add_parser("status", help="whether a review is due (reviewed-* tags)")
     p.add_argument("--ref", default="main")
     p.add_argument("--every", type=int, default=review.EVERY_DAYS, help="days between reviews")
+    p = sub.add_parser("habits", help="repeated command lines from configured JSONL logs and optional scan")
+    p.add_argument("--since", help="ignore older log lines when ts is present (default from config, e.g. 14d)")
+    p.add_argument("--no-redact", action="store_true", help="do not replace long numbers or hex in normalization")
     args = parser.parse_args(argv)
     project = load_project(args.repo, args.app, args.name, args.src)
     try:
-        return {"check": cmd_check, "changes": cmd_changes, "status": cmd_status}[args.cmd](args, project)
+        return {"check": cmd_check, "changes": cmd_changes, "status": cmd_status, "habits": cmd_habits}[args.cmd](
+            args, project
+        )
     except GitError as e:
         print(f"clireview: {e}", file=sys.stderr)
         return 2
