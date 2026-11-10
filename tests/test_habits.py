@@ -40,6 +40,7 @@ def habit_repo(tmp_path, monkeypatch):
 
             [tool.clireview.habits]
             logs = ["{log}"]
+            since = "2026-10-01"
             min_count = 3
             long_argv = 8
             """

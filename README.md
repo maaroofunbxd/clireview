@@ -27,6 +27,7 @@ MYTOOL_NO_SIDE_EFFECTS = "1"
 uvx --from "git+https://github.com/maaroofunbxd/clireview" clireview check origin/main   # this branch against main
 clireview changes --since "4 weeks ago"   # every merge that changed the CLI, and who made it
 clireview status                          # is a review due (reviewed-* tags)
+clireview find rollback image             # which command does X: ranked templates, options, last run
 clireview habits                          # repeated shell from your JSONL logs (see below)
 ```
 
@@ -34,6 +35,23 @@ clireview habits                          # repeated shell from your JSONL logs 
 break a caller: a removed or renamed command, a removed option, changed arguments, a removed console script.
 `--allow-breaking` reports and exits 0; `--format markdown` or `--format json` for a PR comment or a script
 (`--format` goes before the command). Exit 2: git failed or the CLI did not import.
+
+### `find` — searchable command catalog (v0.4.0)
+
+Imports the live CLI from `[tool.clireview]` in-process, builds a catalog of every leaf command (its template,
+help, and options), and ranks matches using BM25F over command name (`5x`), help (`1x`), and options (`0.4x`),
+with prefix matching (`restar` -> `restart`), everyday synonyms (`rollback` -> `back`/`revert`), typo tolerance,
+and a recency-weighted usage boost when `[tool.clireview.habits]` `logs` are configured.
+
+```bash
+clireview find restart pod                # top matches with template, help, options, and last recorded run
+clireview find -i restart pod             # browse in fzf (ranked for WORDS) with preview pane
+clireview find                            # browse all commands in fzf, most used lately first (on a TTY)
+clireview --format json find restart pod  # structured results + match explanation ("why")
+```
+
+Exit **0** when at least one command matches, **1** when nothing matches (or fzf is cancelled), **2** when no
+words are given outside a terminal or the CLI cannot be imported.
 
 ### `habits` — repeated commands (v0.3.0)
 
@@ -99,7 +117,7 @@ The CLI's own dependencies must be installed (`uv sync`), since each commit's co
 ## Install as a library
 
 ```bash
-uv add "clireview @ git+https://github.com/maaroofunbxd/clireview@v0.3.0"
+uv add "clireview @ git+https://github.com/maaroofunbxd/clireview@v0.4.0"
 ```
 
 Python 3.9 or newer; no dependencies. The CLI being read needs its own dependencies (typer or click) in the Python
@@ -162,6 +180,15 @@ A review is an annotated tag `reviewed-YYYY-MM-DD` on the commit of main that wa
 
 - `load_habits_config(repo)`, `run(project, config)`: read JSONL `logs` and optional `scan` globs, normalize,
   classify repeats vs `{name}`, match `open_issues` titles, render text/json/markdown via the CLI.
+
+### catalog.py
+
+- `catalog(app, name="cli", place_options=PLACE_OPTIONS)`: walk leaf commands of a Typer app or Click group/command
+  and build templates, help, options, and arguments.
+- `Index(entries, runs=None, now=None)`, `find(entries, text, limit=10, runs=None)`, `query_words(text, stop=STOP, name=None)`,
+  `usage(runs, now=None)`, `last_runs(runs, command)`: BM25F search and recency-weighted usage from argv or habits JSONL rows.
+- `preview_text(e, runs, name="cli")`, `fzf_lines(ordered)`, `browse_fzf(ordered, runs, header, name="cli")`:
+  interactive fzf command browser with a numbered stdin fallback when `fzf` is not installed.
 
 ## Develop
 
